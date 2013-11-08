@@ -39,4 +39,23 @@ module Kafka
       batch.messages.clear
     end
   end
+
+#zookeeper consistent-hashing feature,added by liyong
+  class ZKProducer
+    include Kafka::IO
+    attr_accessor :topic, :partition
+    def initialize(options = {})
+      self.topic       = options[:topic]      || "test"
+      self.partition   = options[:partition]  || 0
+      self.host        = options[:host]       || HOST
+      self.port        = options[:port]       || PORT
+      self.compression = options[:compression] || Message::NO_COMPRESSION
+      self.zkconnect(self.host, self.port)
+    end
+    def zkpush(messages)
+      self.zkwrite(Encoder.produce(self.topic, self.partition, messages, compression))
+    end
+  end
+######################################################
+
 end
