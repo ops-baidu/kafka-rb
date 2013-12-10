@@ -1,3 +1,7 @@
+# modified by baidu-ops
+get kafka broker host and port which has the min broker id from zookeeper.
+jiuze#baidu.com.
+
 # kafka-rb
 kafka-rb allows you to produce and consume messages to / from the Kafka distributed messaging service.
 This is an improved version of the original Ruby client written by Alejandro Crosa, 
