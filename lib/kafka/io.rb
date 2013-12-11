@@ -25,47 +25,35 @@ module Kafka
       self.port = port
       self.socket = TCPSocket.new(host, port)
     end
-#zookeeper consistent-hashing feature,added by liyong
-    def get_host_from_zk(zkhost, zkport)
+
+    def get_kafka_host_from_zk(zkhost, zkport)
       require 'zookeeper'
-      require 'consistent_hashing'
-      require 'socket'
-      @z = Zookeeper.new("#{zkhost}:#{zkport}")
-      @ring = ConsistentHashing::Ring.new
-      @host_local = Socket.gethostname
-      brokers = @z.get_children(:path => "/brokers/ids")[:children]
-      brokers.each do |broker|
-        res = @z.get(:path => "/brokers/ids/#{broker}")[:data]
-        @ring << res
-      end
-      @z.close
-      @ring.node_for(@host_local).split(":")[1..-1]
+
+      zk = Zookeeper.new("#{zkhost}:#{zkport}")
+      brokers = zk.get_children(:path => "/brokers/ids")[:children]
+      host_port = zk.get(:path => "/brokers/ids/#{brokers.min}")[:data]
+      zk.close
+
+      host_port.split(":")[-2..-1]
     end
+
     def zkconnect(zkhost, zkport)
       raise ArgumentError, "No zkhost or zkport specified" unless zkhost && zkport
       self.zkhost = zkhost
       self.zkport = zkport
-      self.host, self.port = get_host_from_zk(self.zkhost, self.zkport)
-      self.socket = TCPSocket.new(self.host, self.port)
+      self.host, self.port = get_kafka_host_from_zk(self.zkhost, self.zkport)
+      connect(self.host, self.port)
     end
-########################################################
 
     def reconnect
+      if self.zkhost and self.zkport
+        self.host, self.port = get_kafka_host_from_zk(self.zkhost, self.zkport)
+      end
       self.socket = TCPSocket.new(self.host, self.port)
     rescue
       self.disconnect
       raise
     end
-
-#zookeeper consistent-hashing feature,added by liyong
-    def zkreconnect
-      self.host, self.port = get_host_from_zk(self.zkhost, self.zkport)
-      self.socket = TCPSocket.new(self.host, self.port)
-    rescue
-      self.disconnect
-      raise
-    end
-#####################################################
 
     def disconnect
       self.socket.close rescue nil
@@ -86,16 +74,6 @@ module Kafka
       self.disconnect
       raise SocketError, "cannot write: #{$!.message}"
     end
-
-#zookeeper consistent-hashing feature,added by liyong
-    def zkwrite(data)
-      self.zkreconnect unless self.socket
-      self.socket.write(data)
-    rescue
-      self.disconnect
-      raise SocketError, "cannot write: #{$!.message}"
-    end
-#####################################################
 
   end
 end
